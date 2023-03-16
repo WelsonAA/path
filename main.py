@@ -269,8 +269,8 @@ class Ant:
         dist = 0
         for i in range(self.visited_stations.size - 1):
             self.way = np.append(self.way, getPath(self.visited_stations[i], self.visited_stations[i + 1]))
-        for j in range(self.way.size-1):
-            dist += graphMatrix[int(self.way[j])][int(self.way[j+1])]
+        for j in range(self.way.size - 1):
+            dist += graphMatrix[int(self.way[j])][int(self.way[j + 1])]
         self.distance = dist
         return dist
         """Return the total distance travelled by the ant"""
@@ -290,10 +290,10 @@ class Ant:
         all_stations = np.arange(40)
         bool_arr = np.in1d(all_stations, self.visited_stations)
         possible_cities = all_stations[np.logical_not(bool_arr)]
-        """all_stations = set(range(0, 40))
-        possible_stations = all_stations - set(self.visited_stations)"""
-        return np.random.choice(possible_cities)
-        """return random.randint(0, len(possible_cities) - 1)"""
+        all_stations = set(range(0, 40))
+        possible_stations = all_stations - set(self.visited_stations)
+        """return np.random.choice(possible_cities)"""
+        return random.randint(0, len(possible_cities) - 1)
         """Add the next random station to the visited array"""
 
     def visit_probablistic_station(self, pheromone_matrix, graphMatrix):
@@ -308,7 +308,7 @@ class Ant:
         for city in possible_cities:
             possible_indexes = np.append(possible_indexes, city)
             pheromone_on_path = math.pow(pheromone_matrix[int(current_station)][city], ALPHA)
-            heuristic_for_path = math.pow(1/graphMatrix[int(current_station)][city], BETA)
+            heuristic_for_path = math.pow(1 / graphMatrix[int(current_station)][city], BETA)
             prob = pheromone_on_path * heuristic_for_path
             possible_probabilities = np.append(possible_probabilities, prob)
             total_probabilities += prob
@@ -331,7 +331,7 @@ class Ant:
     """roll the wheel"""
 
 
-def solve_tsp(it, number_of_ants, stationsCount, RHO=0.4):
+def solve_tsp(it, number_of_ants, stationsCount=40, RHO=0.4):
     best_ant = None
     for i in range(it):
         antC = Colony()
@@ -357,7 +357,7 @@ class Colony:
             for y in range(0, stationsCount):
                 self.phermatrix[x][y] *= rho
                 for ant in self.ants:
-                    if ant.get_distance_travelled()==0:
+                    if ant.get_distance_travelled() == 0:
                         continue
                     self.phermatrix[x][y] += 1 / ant.get_distance_travelled()
 
@@ -378,4 +378,4 @@ class Colony:
 
 if "__main__" == __name__:
     setup_matrices()
-    solve_tsp(3, 1000, 10, 0.4)
+    solve_tsp(3, 1000, 6, 0.4)
