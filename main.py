@@ -239,7 +239,6 @@ def setup_matrices():
                 if dp[j][k] + dp[k][i] < dp[j][i]:
                     dp[j][i] = dp[j][k] + dp[k][i]
                     nextstation[j][i] = nextstation[j][k]
-    x = 1
 
 
 def getPath(start, end, ans=None):
@@ -261,17 +260,17 @@ class Ant:
         self.visited_stations = np.append(self.visited_stations, 0)
         self.currentStation = 0
         self.distance = 0
+        self.way = np.empty(shape=0, dtype=int)
 
     def __str__(self):
-        return f"{self.distance}\n{self.visited_stations}"
+        return f"{self.distance}\n{self.way}"
 
     def get_distance_travelled(self):
         dist = 0
-        way = np.empty(shape=0, dtype=int)
         for i in range(self.visited_stations.size - 1):
-            way = np.append(way, getPath(self.visited_stations[i], self.visited_stations[i + 1]))
-        for j in range(way.size-1):
-            dist += graphMatrix[int(way[j])][int(way[j+1])]
+            self.way = np.append(self.way, getPath(self.visited_stations[i], self.visited_stations[i + 1]))
+        for j in range(self.way.size-1):
+            dist += graphMatrix[int(self.way[j])][int(self.way[j+1])]
         self.distance = dist
         return dist
         """Return the total distance travelled by the ant"""
@@ -288,9 +287,13 @@ class Ant:
         """Add the next station to the visited array"""
 
     def visit_random_station(self):
-        all_stations = set(range(0, 40))
-        possible_stations = all_stations - set(self.visited_stations)
-        return random.randint(0, len(possible_stations) - 1)
+        all_stations = np.arange(40)
+        bool_arr = np.in1d(all_stations, self.visited_stations)
+        possible_cities = all_stations[np.logical_not(bool_arr)]
+        """all_stations = set(range(0, 40))
+        possible_stations = all_stations - set(self.visited_stations)"""
+        return np.random.choice(possible_cities)
+        """return random.randint(0, len(possible_cities) - 1)"""
         """Add the next random station to the visited array"""
 
     def visit_probablistic_station(self, pheromone_matrix, graphMatrix):
@@ -328,7 +331,7 @@ class Ant:
     """roll the wheel"""
 
 
-def solve_tsp(it, number_of_ants, stationsCount, RHO):
+def solve_tsp(it, number_of_ants, stationsCount, RHO=0.4):
     best_ant = None
     for i in range(it):
         antC = Colony()
@@ -349,7 +352,7 @@ class Colony:
         for _ in range(number_of_ants):
             self.ants.append(Ant())
 
-    def update_phermone_matrix(self, rho, stationsCount=40):
+    def update_phermone_matrix(self, rho, stationsCount):
         for x in range(0, stationsCount):
             for y in range(0, stationsCount):
                 self.phermatrix[x][y] *= rho
@@ -369,10 +372,10 @@ class Colony:
             if distance_travelled < best.get_distance_travelled():
                 best = self.ants[ant]
         self.best_ant = best
-        self.best_distance = distance_travelled
+        self.best_distance = self.best_ant.distance
         return best
 
 
 if "__main__" == __name__:
     setup_matrices()
-    solve_tsp(50, 1000, 40, 0.4)
+    solve_tsp(3, 1000, 10, 0.4)
