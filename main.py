@@ -229,8 +229,8 @@ def setup_matrices():
     graphMatrix[0][0] = float('inf')
     dp = graphMatrix
 
-    for j in range(1, TotalNodeCount):
-        for i in range(1, TotalNodeCount):
+    for j in range(0, TotalNodeCount):
+        for i in range(0, TotalNodeCount):
             if dp[j][i] != float('inf'):
                 nextstation[j][i] = i
     for k in range(0, TotalNodeCount):
@@ -250,7 +250,7 @@ def getPath(start, end, ans=None):
 
     if start == end:
         return np.array(ans)
-    start = nextstation[start][end]
+    start = nextstation[int(start)][int(end)]
     return getPath(start, end, ans)
 
 
@@ -262,14 +262,18 @@ class Ant:
         self.currentStation = 0
         self.distance = 0
 
+    def __str__(self):
+        return f"{self.distance}\n{self.visited_stations}"
+
     def get_distance_travelled(self):
         dist = 0
         way = np.empty(shape=0, dtype=int)
         for i in range(self.visited_stations.size - 1):
             way = np.append(way, getPath(self.visited_stations[i], self.visited_stations[i + 1]))
-        for j in range(way - 1):
-            dist += graphMatrix[j][j + 1]
+        for j in range(way.size-1):
+            dist += graphMatrix[int(way[j])][int(way[j+1])]
         self.distance = dist
+        return dist
         """Return the total distance travelled by the ant"""
 
     def visit_station(self, pheromone_matrix):
@@ -301,7 +305,7 @@ class Ant:
         for city in possible_cities:
             possible_indexes = np.append(possible_indexes, city)
             pheromone_on_path = math.pow(pheromone_matrix[int(current_station)][city], ALPHA)
-            heuristic_for_path = math.pow(graphMatrix[int(current_station)][city], BETA)
+            heuristic_for_path = math.pow(1/graphMatrix[int(current_station)][city], BETA)
             prob = pheromone_on_path * heuristic_for_path
             possible_probabilities = np.append(possible_probabilities, prob)
             total_probabilities += prob
@@ -315,7 +319,7 @@ class Ant:
         slices = []
         total = 0
         for i in range(possible_stations_count):
-            slices.append([slices, possible_indexes[i], total, total + possible_probabilities[i]])
+            slices.append([possible_indexes[i], total, total + possible_probabilities[i]])
             total += possible_probabilities[i]
         spin = random.random()
         result = [sl[0] for sl in slices if sl[1] < spin <= sl[2]]
@@ -332,6 +336,7 @@ def solve_tsp(it, number_of_ants, stationsCount, RHO):
             antC.move_ants()
         antC.update_phermone_matrix(RHO, stationsCount)
         best_ant = antC.get_best()
+        print(best_ant)
 
 
 class Colony:
@@ -349,6 +354,8 @@ class Colony:
             for y in range(0, stationsCount):
                 self.phermatrix[x][y] *= rho
                 for ant in self.ants:
+                    if ant.get_distance_travelled()==0:
+                        continue
                     self.phermatrix[x][y] += 1 / ant.get_distance_travelled()
 
     def move_ants(self):
@@ -357,10 +364,10 @@ class Colony:
 
     def get_best(self):
         best = self.ants[0]
-        for ant in range(1, self.ants):
-            distance_travelled = ant.get_distance_travelled()
+        for ant in range(1, len(self.ants)):
+            distance_travelled = self.ants[ant].get_distance_travelled()
             if distance_travelled < best.get_distance_travelled():
-                best = ant
+                best = self.ants[ant]
         self.best_ant = best
         self.best_distance = distance_travelled
         return best
@@ -368,4 +375,4 @@ class Colony:
 
 if "__main__" == __name__:
     setup_matrices()
-    solve_tsp(500, 1000, 40, 0.4)
+    solve_tsp(50, 1000, 40, 0.4)
