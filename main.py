@@ -1,7 +1,6 @@
 import math
+import random
 
-from ant import Ant
-from colony import Colony
 import numpy as np
 
 stationsCount = 40
@@ -188,12 +187,11 @@ graphMatrix = np.ones(shape=(TotalNodeCount + 1, TotalNodeCount + 1), dtype=floa
 graphMatrix = graphMatrix * float('inf')
 nextstation = np.ones(shape=(TotalNodeCount + 1, TotalNodeCount + 1), dtype=int)
 nextstation = nextstation * -1
-phermatrix = np.ones(shape=np.shape(graphMatrix), dtype=float)
 
 ALPHA = 4
 BETA = 2
 RHO = 0.4
-Q=0.1
+Q = 0.1
 
 
 def get_point(s):
@@ -256,17 +254,116 @@ def getPath(start, end, ans=None):
     return getPath(start, end, ans)
 
 
-def solve_tsp(it, number_of_ants):
+class Ant:
+
+    def __init__(self):
+        self.visited_stations = np.empty(shape=0,dtype=int)
+        self.visited_stations=np.append(self.visited_stations,0)
+        self.currentStation = 0
+        self.distance = 0
+
+
+    def get_distance_travelled(self, adj_matrix):
+        dist = 0
+        way = np.empty(dtype=int)
+        for i in range(self.visited_stations - 1):
+            way.append(getPath(self.visited_stations[i], self.visited_stations[i + 1]))
+        for j in range(way - 1):
+            dist += graphMatrix[j][j + 1]
+        self.distance = dist
+        """Return the total distance travelled by the ant"""
+
+    def visit_station(self, pheromone_matrix):
+        if random.random() < Q:
+            self.visited_stations = np.append(self.visited_stations, self.visit_random_station())
+        else:
+            self.visited_stations = np.append(self.visited_stations,
+                                              self.roulette_wheel_selection(
+                                                  self.visit_probablistic_station(pheromone_matrix, graphMatrix)))
+        """Add the next station to the visited array"""
+
+    def visit_random_station(self):
+        all_stations = set(range(0, 40))
+        possible_stations = all_stations - set(self.visited_stations)
+        return random.randint(0, len(possible_stations) - 1)
+        """Add the next random station to the visited array"""
+
+    def visit_probablistic_station(self, pheromone_matrix, graphMatrix):
+        current_station = self.visited_stations[-1]
+        all_stations = np.arange(40)
+        bool_arr = np.in1d(all_stations, self.visited_stations)
+        possible_cities = all_stations[np.logical_not(bool_arr)]
+        possible_indexes = np.empty(shape=0,dtype=int)
+        possible_probabilities = np.empty(shape=0,dtype=float)
+        total_probabilities = 0
+
+        for city in possible_cities:
+            possible_indexes = np.append(possible_indexes, city)
+            pheromone_on_path = math.pow(pheromone_matrix[current_station][city], ALPHA)
+            heuristic_for_path = math.pow(graphMatrix[current_station][city], BETA)
+            prob = pheromone_on_path * heuristic_for_path
+            possible_probabilities = np.append(possible_probabilities, prob)
+            total_probabilities += prob
+        possible_probabilities = [probability / total_probabilities for probability in possible_probabilities]
+        return [possible_indexes, possible_probabilities]
+        """Add the next probablistic station to the visited array"""
+
+    @staticmethod
+    def roulette_wheel_selection(self, possible_indexes, possible_probabilities, possible_stations_count):
+        slices = np.empty(dtype=int)
+        total = 0
+        for i in range(possible_stations_count):
+            slices = np.append(slices, possible_indexes[i], total, total + possible_probabilities[i])
+            total += possible_probabilities[i]
+        spin = random.random()
+        result = [sl[0] for sl in slices if sl[1] < spin <= sl[2]]
+        return result
+
+    """roll the wheel"""
+
+
+def solve_tsp(it, number_of_ants, stationsCount, RHO):
     best_ant = None
     for i in range(it):
-        antC = Colony(number_of_ants)
+        antC = Colony()
         for r in range(stationsCount - 1):
             antC.move_ants()
-        antC.update_phermone_matrix(RHO, phermatrix, stationsCount)
+        antC.update_phermone_matrix(RHO, stationsCount)
         best_ant = antC.get_best()
+
+
+class Colony:
+    def __init__(self, number_of_ants=1000):
+        self.ants = []
+        self.phermatrix = np.ones(shape=np.shape(graphMatrix), dtype=float)
+        self.best_distance = math.inf
+        self.best_ant = None
+        self.best_distance = 0
+        for _ in range(number_of_ants):
+            self.ants.append(Ant())
+
+    def update_phermone_matrix(self, rho, pheromoneMatrix, stationsCount):
+        for x in range(0, stationsCount):
+            for y in range(0, stationsCount):
+                pheromoneMatrix[x][y] *= rho
+                for ant in self.ants:
+                    pheromoneMatrix[x][y] += 1 / ant.get_distance_travelled()
+
+    def move_ants(self):
+        for ant in self.ants:
+            ant.visit_station(self.phermatrix)
+
+    def get_best(self):
+        best = self.ants[0]
+        for ant in range(1, self.ants):
+            distance_travelled = ant.get_distance_travelled()
+            if distance_travelled < best.get_distance_travelled():
+                best = ant
+        self.best_ant = best
+        self.best_distance = distance_travelled
+        return best
 
 
 if "__main__" == __name__:
     setup_matrices()
-    x = 1
-    print(getPath(12, 60))
+    solve_tsp(500, 1000, 40, 0.4)
