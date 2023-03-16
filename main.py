@@ -183,9 +183,9 @@ fivteenPoints = np.array([[-206.4, 4.2, 0.],
 
 graphList = {}
 TotalNodeCount = givenPoints.shape[0] + intersections.shape[0]
-graphMatrix = np.ones(shape=(TotalNodeCount + 1, TotalNodeCount + 1), dtype=float)
+graphMatrix = np.ones(shape=(TotalNodeCount, TotalNodeCount), dtype=float)
 graphMatrix = graphMatrix * float('inf')
-nextstation = np.ones(shape=(TotalNodeCount + 1, TotalNodeCount + 1), dtype=int)
+nextstation = np.ones(shape=(TotalNodeCount, TotalNodeCount), dtype=int)
 nextstation = nextstation * -1
 
 ALPHA = 4
@@ -222,24 +222,24 @@ def setup_matrices():
 
     for s, d in edges:
         dis = math.dist(get_point(s), get_point(d))
-
-        graphMatrix[s][d] = dis
-        graphMatrix[d][s] = dis
+        graphMatrix[s - 1][d - 1] = dis
+        graphMatrix[d - 1][s - 1] = dis
 
     np.fill_diagonal(graphMatrix, 0)
     graphMatrix[0][0] = float('inf')
     dp = graphMatrix
 
-    for j in range(1, TotalNodeCount + 1):
-        for i in range(1, TotalNodeCount + 1):
+    for j in range(1, TotalNodeCount):
+        for i in range(1, TotalNodeCount):
             if dp[j][i] != float('inf'):
                 nextstation[j][i] = i
-    for k in range(1, TotalNodeCount + 1):
-        for j in range(1, TotalNodeCount + 1):
-            for i in range(1, TotalNodeCount + 1):
+    for k in range(0, TotalNodeCount):
+        for j in range(0, TotalNodeCount):
+            for i in range(0, TotalNodeCount):
                 if dp[j][k] + dp[k][i] < dp[j][i]:
                     dp[j][i] = dp[j][k] + dp[k][i]
                     nextstation[j][i] = nextstation[j][k]
+    x = 1
 
 
 def getPath(start, end, ans=None):
@@ -257,17 +257,16 @@ def getPath(start, end, ans=None):
 class Ant:
 
     def __init__(self):
-        self.visited_stations = np.empty(shape=0,dtype=int)
-        self.visited_stations=np.append(self.visited_stations,0)
+        self.visited_stations = np.empty(shape=0, dtype=int)
+        self.visited_stations = np.append(self.visited_stations, 0)
         self.currentStation = 0
         self.distance = 0
 
-
-    def get_distance_travelled(self, adj_matrix):
+    def get_distance_travelled(self):
         dist = 0
-        way = np.empty(dtype=int)
-        for i in range(self.visited_stations - 1):
-            way.append(getPath(self.visited_stations[i], self.visited_stations[i + 1]))
+        way = np.empty(shape=0, dtype=int)
+        for i in range(self.visited_stations.size - 1):
+            way = np.append(way, getPath(self.visited_stations[i], self.visited_stations[i + 1]))
         for j in range(way - 1):
             dist += graphMatrix[j][j + 1]
         self.distance = dist
@@ -277,9 +276,11 @@ class Ant:
         if random.random() < Q:
             self.visited_stations = np.append(self.visited_stations, self.visit_random_station())
         else:
+            possible_indexes, possible_probabilities, possible_stations_count = self.visit_probablistic_station(
+                pheromone_matrix, graphMatrix)
             self.visited_stations = np.append(self.visited_stations,
                                               self.roulette_wheel_selection(
-                                                  self.visit_probablistic_station(pheromone_matrix, graphMatrix)))
+                                                  possible_indexes, possible_probabilities, possible_stations_count))
         """Add the next station to the visited array"""
 
     def visit_random_station(self):
@@ -293,27 +294,28 @@ class Ant:
         all_stations = np.arange(40)
         bool_arr = np.in1d(all_stations, self.visited_stations)
         possible_cities = all_stations[np.logical_not(bool_arr)]
-        possible_indexes = np.empty(shape=0,dtype=int)
-        possible_probabilities = np.empty(shape=0,dtype=float)
+        possible_indexes = np.empty(shape=0, dtype=int)
+        possible_probabilities = np.empty(shape=0, dtype=float)
         total_probabilities = 0
 
         for city in possible_cities:
             possible_indexes = np.append(possible_indexes, city)
-            pheromone_on_path = math.pow(pheromone_matrix[current_station][city], ALPHA)
-            heuristic_for_path = math.pow(graphMatrix[current_station][city], BETA)
+            pheromone_on_path = math.pow(pheromone_matrix[int(current_station)][city], ALPHA)
+            heuristic_for_path = math.pow(graphMatrix[int(current_station)][city], BETA)
             prob = pheromone_on_path * heuristic_for_path
             possible_probabilities = np.append(possible_probabilities, prob)
             total_probabilities += prob
         possible_probabilities = [probability / total_probabilities for probability in possible_probabilities]
-        return [possible_indexes, possible_probabilities]
+        return [possible_indexes, possible_probabilities, len(possible_cities)]
         """Add the next probablistic station to the visited array"""
 
     @staticmethod
-    def roulette_wheel_selection(self, possible_indexes, possible_probabilities, possible_stations_count):
-        slices = np.empty(dtype=int)
+    def roulette_wheel_selection(possible_indexes, possible_probabilities, possible_stations_count):
+        # slices = np.empty(shape=0,dtype=int)
+        slices = []
         total = 0
         for i in range(possible_stations_count):
-            slices = np.append(slices, possible_indexes[i], total, total + possible_probabilities[i])
+            slices.append([slices, possible_indexes[i], total, total + possible_probabilities[i]])
             total += possible_probabilities[i]
         spin = random.random()
         result = [sl[0] for sl in slices if sl[1] < spin <= sl[2]]
@@ -342,12 +344,12 @@ class Colony:
         for _ in range(number_of_ants):
             self.ants.append(Ant())
 
-    def update_phermone_matrix(self, rho, pheromoneMatrix, stationsCount):
+    def update_phermone_matrix(self, rho, stationsCount=40):
         for x in range(0, stationsCount):
             for y in range(0, stationsCount):
-                pheromoneMatrix[x][y] *= rho
+                self.phermatrix[x][y] *= rho
                 for ant in self.ants:
-                    pheromoneMatrix[x][y] += 1 / ant.get_distance_travelled()
+                    self.phermatrix[x][y] += 1 / ant.get_distance_travelled()
 
     def move_ants(self):
         for ant in self.ants:
