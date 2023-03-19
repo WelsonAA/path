@@ -385,4 +385,4 @@ class Colony:
 
 if "__main__" == __name__:
     setup_matrices()
-    solve_tsp(10, 10, 0.4)
+    solve_tsp(10, 15, 0.4)
